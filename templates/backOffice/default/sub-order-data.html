@@ -1,0 +1,89 @@
+<div class="general-block-decorator">
+    <div class="suborder-toaster"></div>
+    <div class="table-responsive">
+        <table class="table table-striped table-condensed table-left-aligned">
+            <caption class="clearfix">
+                {intl l='SubOrder'}
+                {include file='renderer/buttons.html' btn_group=false buttons=[
+                    [
+                        'type' => 'create',
+                        'class' => 'action-btn',
+                        'title' => {intl l='Add a new subOrder'},
+                        'href' => '#sub_order_creation_dialog',
+                        'data' => [
+                          'toggle' => 'modal'
+                        ]
+                    ]
+                ]}
+            </caption>
+            {ifloop rel="subscription_order"}
+            <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Ref</th>
+                        <th>Create at</th>
+                        <th>AuthorizedPayment</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+            <tbody>
+            {loop type="generic" name="subscription_order" table_name="sub_order" filters="parent_order_id:`$order_id`"}
+            {loop type="order" name="order-list" customer="*" id=$SUB_ORDER_ID page=1 limit=20}
+            {loop type="order-status" name="order-status" id=$STATUS}
+                {assign "orderStatus" $TITLE}
+                {assign "orderStatusLabel" "order_$CODE"}
+                {assign "orderStatusCodeColor" $COLOR}
+            {/loop}
+                <tr>
+                        <td><a href="{url path="/admin/order/update/%id" id=$SUB_ORDER_ID}">{$SUB_ORDER_ID}</a></td>
+                        <td><a href="{url path="/admin/order/update/%id" id=$SUB_ORDER_ID}"> {$REF}</a></td>
+                        <td>{format_date date=$CREATED_AT}</td>
+                        <td>{', '|implode:$AUTHORIZED_PAYMENT_OPTION}</td>
+                        <td>
+                            <span class="label" style="background-color:{$orderStatusCodeColor};">{$orderStatus}</span>
+                        </td>
+                        <td class="actions">
+                            <!--to do delete actions + generate link -->
+                            <div class="btn-group">
+                                {if $STATUS !== 5}
+                                <a class="btn btn-info suborder-send-mail" title="{intl l="send mail"}">
+                                <span class="glyphicon glyphicon-envelope"></span>
+                                </a>
+                                <a class="btn btn-info suborder-generate-link" href="{url path="/%token" token=$TOKEN}"  title="{intl l="Copy link"}">
+                                <span class="glyphicon glyphicon-link"></span>
+                                </a>
+                                <a class="btn btn-danger suborder-delete" href="{url path="/admin/module/SubOrder/%token/delete" token=$TOKEN}" title="{intl l="delete suborder"}" >
+                                <span class="glyphicon glyphicon-remove"></span>
+                                </a>
+                                {/if}
+                            </div>
+                        </td>
+                </tr>
+            {/loop}
+            {/loop}
+
+            {/ifloop}
+            {elseloop rel="subscription_order"}
+                <tr>
+                    <td colspan="8">
+                        <div class="alert alert-info">
+                            {intl l='No suborder associated to this order'}
+                        </div>
+                    </td>
+                </tr>
+            {/elseloop}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{form name="sub_order_form_creation"}
+{include file='modal/add_sub_order_modal.html'
+    parent_order_id = $order_id
+}
+{/form}
+
+
+

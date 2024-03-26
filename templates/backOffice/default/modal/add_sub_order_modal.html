@@ -1,0 +1,60 @@
+{capture "sub_order_creation_dialog"}
+    {form_hidden_fields form=$form}
+
+        {form_field field="parentOrderId"}
+            <input type="hidden" name="{$name}" value="{$parent_order_id}" />
+        {/form_field}
+
+        {form_field form=$form field="amountAlreadyPaid"}
+            <div class="form-group {if $error}has-error{/if}">
+                <label for="{$label_attr.for|default:null}" class="control-label">{intl l="amount already paid"}
+                    {if $required}
+                    <span class="required">*</span>
+                    {/if} :
+                </label>
+
+                <div class="from-group">
+                    <input type="number" id="{$label_attr.for|default:null}" step="0.01" min="0" required="required" name="{$name}" class="form-control" value="{$value}" title="{$label}" placeholder="{intl l='0'}">
+                </div>
+
+                <div class="help-block">{intl l='Enter here the amount already paid for this command'}</div>
+            </div>
+        {/form_field}
+
+
+        {form_field form=$form field="authorizedPaymentOption"}
+
+            <div class="form-group {if $error}has-error{/if}">
+                <label for="{$label_attr.for|default:null}" class="control-label">{intl l="authorized payment option"}
+                    {if $required}
+                    <span class="required">*</span>
+                    {/if} :
+                </label>
+
+                <div class="from-group">
+                    <select multiple id="{$label_attr.for|default:null}" name="{$name}">
+                        {foreach $choices as $choice}
+                        <option value="{$choice->value}">{$choice->label}</option>
+                        {/foreach}
+                    </select>
+                </div>
+
+                <div class="help-block">{intl l='Select the authorized payment module'}</div>
+            </div>
+
+        {/form_field}
+{/capture}
+
+{include
+    file = "includes/generic-create-dialog.html"
+
+    dialog_id    = "sub_order_creation_dialog"
+    dialog_title = {intl l="Create a new SubOrder"}
+    dialog_body  = {$smarty.capture.sub_order_creation_dialog nofilter}
+
+    dialog_ok_label     = {intl l="Create subOrder"}
+
+    form_action        = {url path='/admin/module/SubOrder/create'}
+    form_enctype       = {form_enctype}
+    form_error_message = $form_error_message
+}
