@@ -48,11 +48,8 @@
                             <!--to do delete actions + generate link -->
                             <div class="btn-group">
                                 {if $STATUS !== 5}
-                                <a class="btn btn-info suborder-send-mail" title="{intl l="send mail"}">
+                                <a class="btn btn-info suborder-send-mail" href="{url path="/admin/module/SubOrder/%token/send-mail" token=$TOKEN}" title="{intl l="send mail"}">
                                 <span class="glyphicon glyphicon-envelope"></span>
-                                </a>
-                                <a class="btn btn-info suborder-generate-link" href="{url path="/%token" token=$TOKEN}"  title="{intl l="Copy link"}">
-                                <span class="glyphicon glyphicon-link"></span>
                                 </a>
                                 <a class="btn btn-danger suborder-delete" href="{url path="/admin/module/SubOrder/%token/delete" token=$TOKEN}" title="{intl l="delete suborder"}" >
                                 <span class="glyphicon glyphicon-remove"></span>

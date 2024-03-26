@@ -45,7 +45,6 @@ class BackHook extends BaseHook
 
     public function addSubOrderJs(HookRenderEvent $event ): void
     {
-//        <tag name="hook.event_listener" event="order.edit-js " type="back" templates="js:PayPlugModule/order_pay_plug.js"/>
         $event->add($this->addJS('assets/js/sub-order.js'));
     }
 

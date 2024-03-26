@@ -12,16 +12,17 @@ $( "a.suborder-delete" ).click( function(ev) {
     });
 });
 
-$( "a.suborder-generate-link" ).click( function(ev) {
+
+$( "a.suborder-send-mail" ).click( function(ev) {
     ev.preventDefault();
     var $this = $(this);
     var $url = $this.attr("href");
-    navigator.clipboard.writeText($url)
-        .then(() => {
-            $(".suborder-toaster").html("<div class='alert alert-info'> Copied</div>").show().fadeOut(1200);
-        })
-});
-
-$( "a.suborder-send-mail" ).click( function(ev) {
-console.log('TODO')
+    $.ajax({
+        url: $url,
+        type: 'POST',
+    }).done(function(data, textStatus, jqXHR){
+        $(".suborder-toaster").html("<div class='alert alert-info'> Mail sent</div>").show().fadeOut(1200);
+    }).fail(function(jqXHR, textStatus, errorThrown){
+        $(".suborder-toaster").html("<div class='alert alert-danger'> Mail failed </div>").show().fadeOut(1200);
+    });
 });
