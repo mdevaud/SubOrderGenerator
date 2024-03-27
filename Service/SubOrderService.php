@@ -151,7 +151,8 @@ class SubOrderService
             SubOrderGenerator::SUBORDER_LINK_MESSAGE_NAME,
             [ConfigQuery::getStoreEmail() => ConfigQuery::getStoreName()],
             [$customer->getEmail() => $customer->getFirstname().' '.$customer->getLastname()],
-            ['subOrder' => $subOrder]
+            //todo create link to front template.
+            ['subOrderlink' => $subOrder]
         );
         $this->mailer->send($email);
     }

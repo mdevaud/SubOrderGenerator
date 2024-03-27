@@ -63,20 +63,16 @@ class SubOrderController extends BaseFrontOpenApiController
         $token,
         Request $request
     ): JsonResponse {
-        $currentUser = $request->getSession()->getCustomerUser();
         $subOrder = SubOrderQuery::create()->filterByToken($token)
             ->findOne();
 
         if (null === $subOrder) {
             throw new NotFoundHttpException('SubOrder not found');
         }
-        if ($subOrder->getOrder()->getCustomerId() === $currentUser->getId()) {
-            throw new AccessDeniedHttpException('Not Authorized');
-        }
 
+        //toDo get Suborder object.
         return new JsonResponse([
-            'subOrderId' => $subOrder->getSubOrderId(),
-            'parentOrderId' => $subOrder->getParentOrderId(),
+            'subOrder' => $subOrder->getOrderRelatedBySubOrderId()->toArray(),
             'token' => $subOrder->getToken(),
             'authorizedPaymentOption' => $subOrder->getAuthorizedPaymentOption()
         ]);
