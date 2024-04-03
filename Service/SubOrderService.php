@@ -133,11 +133,11 @@ class SubOrderService
 
     public function updateParentOrderStatus(int $childOrderId, string $statusCode): Order
     {
-        $orderStatusCancelled = OrderStatusQuery::create()->findOneByCode($statusCode);
+        $orderStatus = OrderStatusQuery::create()->findOneByCode($statusCode);
         $parentOrder = SubOrderQuery::create()->findOneBySubOrderId($childOrderId)
             ->getOrderRelatedByParentOrderId();
 
-        $parentOrder->setOrderStatus($orderStatusCancelled)
+        $parentOrder->setOrderStatus($orderStatus)
             ->save();
 
         return $parentOrder;
