@@ -19,7 +19,7 @@ class OrderStatusListener implements EventSubscriberInterface
     public function postOrderUpdate(OrderEvent $event){
         $order = $event->getOrder();
         if($this->subOrderService->isSubOrder($order->getId()) && $order->isPaid()){
-            $this->subOrderService->updateParentOrderStatus($order, OrderStatus::CODE_PAID);
+            $this->subOrderService->updateParentOrderStatus($order->getId(), OrderStatus::CODE_PAID);
         }
 
     }
