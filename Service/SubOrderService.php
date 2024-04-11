@@ -6,11 +6,8 @@ use DateTime;
 use Exception;
 use SubOrderGenerator\Model\SubOrder;
 use SubOrderGenerator\Model\SubOrderQuery;
-use SubOrderGenerator\SubOrderGenerator;
 use Thelia\Log\Tlog;
 
-use Thelia\Mailer\MailerFactory;
-use Thelia\Model\ConfigQuery;
 use Thelia\Model\Map\OrderProductAttributeCombinationTableMap;
 use Thelia\Model\Map\OrderProductTableMap;
 use Thelia\Model\Map\OrderTableMap;
@@ -126,11 +123,13 @@ class SubOrderService
     public function updateParentOrderStatus(int $childOrderId, string $statusCode): Order
     {
         $orderStatus = OrderStatusQuery::create()->findOneByCode($statusCode);
-        $parentOrder = SubOrderQuery::create()->findOneBySubOrderId($childOrderId)
-            ->getOrderRelatedByParentOrderId();
 
-        $parentOrder->setOrderStatus($orderStatus)
-            ->save();
+        while(null !== $subOrder = SubOrderQuery::create()->findOneBySubOrderId($childOrderId)) {
+            $parentOrder = $subOrder->getOrderRelatedByParentOrderId();
+            $parentOrder->setOrderStatus($orderStatus)
+                ->save();
+            $childOrderId = $parentOrder->getId();
+        }
 
         return $parentOrder;
     }
