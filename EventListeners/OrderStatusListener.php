@@ -7,6 +7,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Thelia\Core\Event\Order\OrderEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Model\OrderStatus;
+use Thelia\Model\OrderStatusQuery;
 
 class OrderStatusListener implements EventSubscriberInterface
 {
@@ -21,7 +22,6 @@ class OrderStatusListener implements EventSubscriberInterface
         if($this->subOrderService->isSubOrder($order->getId()) && $order->isPaid()){
             $this->subOrderService->updateParentOrderStatus($order->getId(), OrderStatus::CODE_PAID);
         }
-
     }
 
     public static function getSubscribedEvents()
