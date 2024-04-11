@@ -3,18 +3,16 @@
 namespace SubOrderGenerator\Controller\Admin;
 
 use SubOrderGenerator\Form\SubOrderFormCreate;
-use SubOrderGenerator\Model\OpenApi\SubOrder;
 use SubOrderGenerator\Model\SubOrderQuery;
 use SubOrderGenerator\Service\SubOrderService;
 use SubOrderGenerator\SubOrderGenerator;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Thelia\Controller\Admin\BaseAdminController;
-use Thelia\Core\HttpFoundation\JsonResponse;
 use Thelia\Core\HttpFoundation\Response;
 use Thelia\Core\Translation\Translator;
 use Thelia\Form\Exception\FormValidationException;
+use Thelia\Mailer\MailerFactory;
 use Thelia\Model\Base\OrderStatusQuery;
 use Thelia\Model\OrderStatus;
 
