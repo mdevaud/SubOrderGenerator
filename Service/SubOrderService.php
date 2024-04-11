@@ -23,15 +23,7 @@ use Thelia\Model\OrderStatusQuery;
 
 class SubOrderService
 {
-    /** @var MailerFactory */
-    protected $mailer;
 
-    public function __construct(
-        MailerFactory $mailer
-    )
-    {
-        $this->mailer = $mailer;
-    }
     const PRODUCT_REF_ALREADY_PAID = "ALREADY_PAID";
     public function createSubOrderFromParent(array $data): SubOrder{
 
@@ -141,19 +133,6 @@ class SubOrderService
             ->save();
 
         return $parentOrder;
-    }
-
-    public function sendSubOrderLink(SubOrder $subOrder)
-    {
-        $parentOrder = $subOrder->getOrderRelatedByParentOrderId();
-        $customer = $parentOrder->getCustomer();
-        $email = $this->mailer->createEmailMessage(
-            SubOrderGenerator::SUBORDER_LINK_MESSAGE_NAME,
-            [ConfigQuery::getStoreEmail() => ConfigQuery::getStoreName()],
-            [$customer->getEmail() => $customer->getFirstname().' '.$customer->getLastname()],
-            ['subOrderlink' => $subOrder]
-        );
-        $this->mailer->send($email);
     }
 
     public function getHistoryPayment(SubOrder $subOrder)

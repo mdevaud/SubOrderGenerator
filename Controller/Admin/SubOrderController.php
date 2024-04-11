@@ -21,6 +21,12 @@ use Thelia\Model\OrderStatus;
 #[Route('/admin/module/SubOrder', name: 'sub_order_admin_')]
 class SubOrderController extends BaseAdminController
 {
+    public function __construct(
+        private MailerFactory $mailer
+    )
+    {
+    }
+
     #[Route('/create', name: 'create', methods: ['POST'])]
     public function createSubOrder(SubOrderService $subOrderService)
     {
@@ -81,7 +87,15 @@ class SubOrderController extends BaseAdminController
             );
         }
 
-        $subOrderService->sendSubOrderLink($subOrder);
+        $parentOrder = $subOrder->getOrderRelatedByParentOrderId();
+        $customer = $parentOrder->getCustomer();
+        $email = $this->mailer->createEmailMessage(
+            SubOrderGenerator::SUBORDER_LINK_MESSAGE_NAME,
+            [ConfigQuery::getStoreEmail() => ConfigQuery::getStoreName()],
+            [$customer->getEmail() => $customer->getFirstname().' '.$customer->getLastname()],
+            ['subOrderlink' => $subOrder]
+        );
+        $this->mailer->send($email);
 
         return new Response('', Response::HTTP_NO_CONTENT);
     }
