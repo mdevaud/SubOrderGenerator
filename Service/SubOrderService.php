@@ -149,4 +149,14 @@ class SubOrderService
         ];
         return  $result;
     }
+
+    private function getPaymentAmount(SubOrder $subOrder)
+    {
+        $parentOrder = $subOrder->getOrderRelatedByParentOrderId();
+        $childOrder = $subOrder->getOrderRelatedBySubOrderId();
+        return [
+            'paymentCode'=>$parentOrder->getPaymentModuleInstance()->getCode(),
+            'amount' => $parentOrder->getTotalAmount() - $childOrder->getTotalAmount()
+        ];
+    }
 }
