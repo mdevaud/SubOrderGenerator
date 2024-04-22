@@ -145,7 +145,7 @@ class SubOrderService
 
         $result[] = [
             'paymentCode'=>$lastChildOrder->getPaymentModuleInstance()->getCode(),
-            'amount' => $lastChildOrder->getTotalAmount()
+            'amount' => round($lastChildOrder->getTotalAmount(),2)
         ];
         return  $result;
     }
@@ -156,7 +156,7 @@ class SubOrderService
         $childOrder = $subOrder->getOrderRelatedBySubOrderId();
         return [
             'paymentCode'=>$parentOrder->getPaymentModuleInstance()->getCode(),
-            'amount' => $parentOrder->getTotalAmount() - $childOrder->getTotalAmount()
+            'amount' => round($parentOrder->getTotalAmount(), 2) - round($childOrder->getTotalAmount(), 2)
         ];
     }
 }
