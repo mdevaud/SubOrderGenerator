@@ -14,6 +14,7 @@ use Thelia\Core\Translation\Translator;
 use Thelia\Form\Exception\FormValidationException;
 use Thelia\Mailer\MailerFactory;
 use Thelia\Model\Base\OrderStatusQuery;
+use Thelia\Model\ConfigQuery;
 use Thelia\Model\OrderStatus;
 
 #[Route('/admin/module/SubOrder', name: 'sub_order_admin_')]
@@ -61,8 +62,8 @@ class SubOrderController extends BaseAdminController
         if(null === $subOrder = SubOrderQuery::create()->findOneByToken($token)){
             throw new NotFoundHttpException($translator->trans(
                 'Suborder not found',
-                    [],
-                    SubOrderGenerator::DOMAIN_NAME)
+                [],
+                SubOrderGenerator::DOMAIN_NAME)
             );
         }
         $orderStatusCancelled = OrderStatusQuery::create()->findOneByCode(OrderStatus::CODE_CANCELED);
