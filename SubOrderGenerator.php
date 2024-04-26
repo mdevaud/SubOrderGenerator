@@ -24,6 +24,11 @@ class SubOrderGenerator extends BaseModule
             'subject' => 'subOrder subject',
             'title' => 'subOrder title'
         ],
+        '1.0.10' =>[
+            'name' => self::SUBORDER_LINK_MESSAGE_NAME,
+            'subject' => 'an order need a payment from you',
+            'title' => 'an order need a payment from you'
+        ]
     ];
 
     public static function generateEmailMessage()
@@ -39,33 +44,33 @@ class SubOrderGenerator extends BaseModule
 
     public static function createMessageIfNotExist($messageName, $subject, $title)
     {
-        if (null === MessageQuery::create()->findOneByName($messageName)) {
+        if (null === $message = MessageQuery::create()->findOneByName($messageName)) {
             $message = new Message();
             $message
                 ->setName($messageName)
-                ->setHtmlTemplateFileName($messageName.'.html')
+                ->setHtmlTemplateFileName($messageName . '.html')
                 ->setHtmlLayoutFileName('')
-                ->setTextTemplateFileName($messageName.'.txt')
+                ->setTextTemplateFileName($messageName . '.txt')
                 ->setTextLayoutFileName('')
                 ->setSecured(0);
-
-            $languages = LangQuery::create()->find();
-
-            foreach ($languages as $language) {
-                $locale = $language->getLocale();
-
-                $message->setLocale($locale);
-
-                $message->setSubject(
-                    Translator::getInstance()->trans($subject, [], $locale)
-                );
-                $message->setTitle(
-                    Translator::getInstance()->trans($title, [], $locale)
-                );
-            }
-
-            $message->save();
         }
+
+        $languages = LangQuery::create()->find();
+
+        foreach ($languages as $language) {
+            $locale = $language->getLocale();
+
+            $message->setLocale($locale);
+
+            $message->setSubject(
+                Translator::getInstance()->trans($subject, [], SubOrderGenerator::DOMAIN_NAME, $locale)
+            );
+            $message->setTitle(
+                Translator::getInstance()->trans($title, [], SubOrderGenerator::DOMAIN_NAME, $locale)
+            );
+        }
+
+        $message->save();
     }
 
     public function postActivation(ConnectionInterface $con = null): void
