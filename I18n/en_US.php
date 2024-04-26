@@ -11,5 +11,5 @@
  */
 
 return [
-    // 'an english string' => 'The displayed english string',
+     'an order need a payment from you' => 'an order need a payment from you',
 ];

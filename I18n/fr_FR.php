@@ -11,5 +11,5 @@
  */
 
 return [
-    // 'an english string' => 'La traduction française de la chaine',
+     'an order need a payment from you' => 'Une commande nécéssite un paiement de votre part',
 ];
