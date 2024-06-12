@@ -2,20 +2,25 @@
 
 namespace SubOrderGenerator\Controller\Api;
 
-use Eurolam\Eurolam;
 use OpenApi\Attributes\JsonContent;
 use OpenApi\Attributes\Parameter;
+use OpenApi\Attributes\Post;
 use OpenApi\Controller\Front\BaseFrontOpenApiController;
-use SubOrderGenerator\Model\SubOrder;
+use OpenApi\Service\OpenApiService;
+use Propel\Runtime\Exception\PropelException;
 use SubOrderGenerator\Model\SubOrderQuery;
+use SubOrderGenerator\Service\SubOrderService;
+use SubOrderGenerator\SubOrderGenerator;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use OpenApi\Attributes\Get;
 use OpenApi\Attributes\Response;
-use Symfony\Component\Validator\Constraints\Json;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\HttpFoundation\Request;
+use Thelia\Core\Translation\Translator;
+use Thelia\Model\Base\OrderProduct;
+use Thelia\Model\ModuleQuery;
 
 
 #[Route("/open_api/sub_order", name: "sub_order")]
@@ -70,11 +75,79 @@ class SubOrderController extends BaseFrontOpenApiController
             throw new NotFoundHttpException('SubOrder not found');
         }
 
-        //toDo get Suborder object.
         return new JsonResponse([
             'subOrder' => $subOrder->getOrderRelatedBySubOrderId()->toArray(),
             'token' => $subOrder->getToken(),
             'authorizedPaymentOption' => $subOrder->getAuthorizedPaymentOption()
+        ]);
+    }
+
+    /**
+     * @throws PropelException
+     */
+    #[Route("/{token}/to_cart", name: "sub_order_to_cart", methods: ["POST"])]
+    #[Post(
+        path: "/sub_order/{token}/to_cart",
+        summary: "Fill a cart with product from a suborder and add discount",
+        tags: ["SubOrder", "Eurolam routes"],
+        parameters: [
+            new Parameter(
+                name: "token",
+                description: "The suborder token",
+                in: "path",
+                required: true
+            )
+        ],
+        responses: [
+            new Response(
+                response: 200,
+                description: "Success",
+            )
+        ]
+    )]
+    public function fillCartWithSubOrder(
+        $token,
+        SubOrderService $subOrderService,
+        Request $request,
+        EventDispatcherInterface $eventDispatcher
+    )
+    {
+        $subOrder = SubOrderQuery::create()->findOneByToken($token);
+        if (null === $subOrder) {
+            throw new NotFoundHttpException(Translator::getInstance()->trans('Cette sous-commande n\'existe pas', [], SubOrderGenerator::DOMAIN_NAME));
+        }
+        $childOrder = $subOrder->getOrderRelatedBySubOrderId();
+        $discountAmount = 0;
+        /** @var OrderProduct $orderProduct */
+        foreach ($childOrder->getOrderProducts() as $orderProduct){
+            if ($orderProduct->getPrice() < 0){
+                $discountAmount+=(float)$orderProduct->getPrice();
+            }
+        }
+        $request->getSession()->clearSessionCart($eventDispatcher);
+
+        $subOrderService->fillCartFromSubOrderChild($childOrder);
+        $cart = $request->getSession()->getSessionCart();
+
+        $request->getSession()->set(SubOrderGenerator::SUBORDER_TOKEN_SESSION_KEY, $subOrder->getToken());
+
+        $cart->setDiscount($discountAmount*(-1))->save();
+
+        $deliveryModule = ModuleQuery::create()->findPk($childOrder->getDeliveryModuleId());
+        $customerId = $childOrder->getCustomerId();
+
+        $moduleInstance = $deliveryModule->getDeliveryModuleInstance($this->container);
+        $deliveryMode = $moduleInstance->getDeliveryMode();
+
+        $deliveryAddress = $subOrderService->getCustomerAddressOrCreate($childOrder->getDeliveryOrderAddressId(), $customerId, $deliveryMode);
+        $invoiceAddress = $subOrderService->getCustomerAddressOrCreate($childOrder->getInvoiceOrderAddressId(), $customerId);
+
+        return OpenApiService::jsonResponse([
+            'deliveryAddressId' => $deliveryAddress->getId(),
+            'invoiceAddressId' =>  $invoiceAddress->getId(),
+            'deliveryModuleId' => $deliveryModule->getId(),
+            'deliveryModuleCode' => $deliveryModule->getCode(),
+            'deliveryMode' => $deliveryMode
         ]);
     }
 }

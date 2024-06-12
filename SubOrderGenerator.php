@@ -14,6 +14,8 @@ use Thelia\Module\BaseModule;
 
 class SubOrderGenerator extends BaseModule
 {
+    const SUBORDER_TOKEN_SESSION_KEY = 'suborder.token';
+
     /** @var string */
     const DOMAIN_NAME = 'subordergenerator';
     const SUBORDER_LINK_MESSAGE_NAME = 'sub_order_link';
@@ -106,6 +108,21 @@ class SubOrderGenerator extends BaseModule
      */
     public function update($currentVersion, $newVersion, ConnectionInterface $con = null): void
     {
+        $finder = Finder::create()
+            ->name('*.sql')
+            ->depth(0)
+            ->sortByName()
+            ->in(__DIR__.DS.'Config'.DS.'update');
+
+        $database = new Database($con);
+
+        /** @var \SplFileInfo $file */
+        foreach ($finder as $file) {
+            if (version_compare($currentVersion, $file->getBasename('.sql'), '<')) {
+                $database->insertSql(null, [$file->getPathname()]);
+            }
+        }
+
         foreach (self::MESSAGES as $version => $message) {
             if (version_compare($currentVersion, $version, '<')) {
                 self::createMessageIfNotExist(
