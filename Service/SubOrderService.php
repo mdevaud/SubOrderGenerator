@@ -6,20 +6,36 @@ use DateTime;
 use Exception;
 use SubOrderGenerator\Model\SubOrder;
 use SubOrderGenerator\Model\SubOrderQuery;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Thelia\Core\Event\Cart\CartEvent;
+use Thelia\Core\Event\TheliaEvents;
 use Thelia\Log\Tlog;
 
+use Thelia\Model\Address;
+use Thelia\Model\AddressQuery;
 use Thelia\Model\Map\OrderProductAttributeCombinationTableMap;
 use Thelia\Model\Map\OrderProductTableMap;
 use Thelia\Model\Map\OrderTableMap;
+use Thelia\Model\OrderAddressQuery;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\Order;
-use Thelia\Model\OrderProduct;
 use Thelia\Model\OrderProductAttributeCombination;
 use Thelia\Model\OrderProductTax;
 use Thelia\Model\OrderStatusQuery;
+use Thelia\Model\ProductQuery;
+use Thelia\Model\ProductSaleElementsQuery;
 
 class SubOrderService
 {
+    public const CART_ITEM_FROM_ORDER_SESSION_KEY = 'cart_item_from_order';
+    public const PICKUP_LABEL_ADDRESS = 'temp_pickup_label_address';
+    public function __construct(
+        private readonly RequestStack $requestStack,
+        private readonly EventDispatcherInterface $dispatcher,
+    )
+    {
+    }
 
     const PRODUCT_REF_ALREADY_PAID = "ALREADY_PAID";
     public function createSubOrderFromParent(array $data): SubOrder{
@@ -29,29 +45,13 @@ class SubOrderService
             $childOrder = $this->createChildOrder($parentOrder);
             $childOrder = $this->copyOrderProduct($parentOrder,$childOrder);
 
-            if($data['amountAlreadyPaid']){
-                $orderProduct = new OrderProduct();
-                $orderProduct
-                    ->setProductRef(self::PRODUCT_REF_ALREADY_PAID)
-                    ->setVirtual(true)
-                    ->setQuantity(1)
-                    ->setTitle('Montant déjà payé pour la commande '.$parentOrder->getRef())
-                    ->setPrice($data['amountAlreadyPaid'])
-                    ->setOrderId($childOrder->getId())
-                    ->setNew(true);
-                $orderProduct->save();
-
-                $newOrderProductTax = new OrderProductTax();
-                $newOrderProductTax->setOrderProductId($orderProduct->getId());
-                $newOrderProductTax->save();
-
-            }
             $subOrder = (new SubOrder())
                 ->setParentOrderId($parentOrder->getId())
                 ->setSubOrderId($childOrder->getId())
                 ->setToken(uniqid())
                 ->setCreatedAt(new DateTime())
-                ->setAuthorizedPaymentOption($data['authorizedPaymentOption'] ?? []);
+                ->setAuthorizedPaymentOption($data['authorizedPaymentOption'] ?? [])
+                ->setAmountAlreadyPaid($data['amountAlreadyPaid'] ?? 0);
             $subOrder->save();
 
             return $subOrder;
@@ -137,26 +137,114 @@ class SubOrderService
     public function getHistoryPayment(SubOrder $subOrder)
     {
         $result = [];
-        $result[] = $this->getPaymentAmount($subOrder);
         do{
             $result[] = $this->getPaymentAmount($subOrder);
-            $lastChildOrder = $subOrder->getOrderRelatedBySubOrderId();
-        }while(null !== $subOrder = SubOrderQuery::create()->findOneByParentOrderId($subOrder->getSubOrderId()));
-
-        $result[] = [
-            'paymentCode'=>$lastChildOrder->getPaymentModuleInstance()->getCode(),
-            'amount' => round($lastChildOrder->getTotalAmount(),2)
-        ];
+        }while(null !== $subOrder = SubOrderQuery::create()->findOneBySubOrderId($subOrder->getParentOrderId()));
         return  $result;
     }
 
     private function getPaymentAmount(SubOrder $subOrder)
     {
         $parentOrder = $subOrder->getOrderRelatedByParentOrderId();
-        $childOrder = $subOrder->getOrderRelatedBySubOrderId();
         return [
             'paymentCode'=>$parentOrder->getPaymentModuleInstance()->getCode(),
-            'amount' => round($parentOrder->getTotalAmount(), 2) - round($childOrder->getTotalAmount(), 2)
+            'parentRef' => $parentOrder->getRef(),
+            'amountAlreadyPaid' => $subOrder->getAmountAlreadyPaid()
         ];
+    }
+
+    public function fillCartFromSubOrderChild(Order $childOrder)
+    {
+        $cart = $this->requestStack->getSession()->getSessionCart($this->dispatcher);
+        $orderProducts = $childOrder->getOrderProducts();
+
+        foreach ($orderProducts as $orderProduct) {
+            $newEvent = new CartEvent($cart);
+            $newEvent->setQuantity($orderProduct->getQuantity());
+            $product = ProductQuery::create()
+                ->filterByVisible(true)
+                ->filterByRef($orderProduct->getProductRef())
+                ->findOne();
+
+            if (null === $product) {
+                continue;
+            }
+
+            $pse = ProductSaleElementsQuery::create()
+                ->filterById($orderProduct->getProductSaleElementsId())
+                ->findOne();
+
+            if (null === $pse) {
+                $pse = ProductSaleElementsQuery::create()
+                    ->filterByRef($orderProduct->getProductSaleElementsRef())
+                    ->findOne();
+            }
+
+            if (null === $pse) {
+                continue;
+            }
+
+            $newEvent->setProduct($product->getId());
+            $newEvent->setNewness(true);
+            $newEvent->setAppend(false);
+            $newEvent->setProductSaleElementsId($pse->getId());
+
+            $this->dispatcher->dispatch($newEvent, TheliaEvents::CART_ADDITEM);
+            $cartItem = $newEvent->getCartItem();
+            $cartItem->setPrice($orderProduct->getPrice())
+                ->setPromoPrice($orderProduct->getPromoPrice())
+                ->setPromo($orderProduct->getWasInPromo());
+
+            $cartItem->save();
+
+            $session = $this->requestStack->getSession();
+            $cartItemFromOrder = $session->get(self::CART_ITEM_FROM_ORDER_SESSION_KEY, []);
+            $cartItemFromOrder[] = $cartItem->getId();
+            $session->set(self::CART_ITEM_FROM_ORDER_SESSION_KEY, $cartItemFromOrder);
+        }
+
+    }
+    public function getCustomerAddressOrCreate(
+        int $addressId,
+        int $customerId,
+            $deliveryMode = null,
+
+    ): Address
+    {
+        $orderAddress = OrderAddressQuery::create()->findPk($addressId);
+
+
+        $address = AddressQuery::create()
+            ->filterByCustomerId($customerId)
+            ->filterByTitleId($orderAddress->getCustomerTitleId())
+            ->filterByFirstname($orderAddress->getFirstname())
+            ->filterByLastname($orderAddress->getLastname())
+            ->filterByAddress1($orderAddress->getAddress1())
+            ->filterByAddress2($orderAddress->getAddress2())
+            ->filterByAddress3($orderAddress->getAddress3())
+            ->filterByCity($orderAddress->getCity())
+            ->filterByCountryId($orderAddress->getCountryId())
+            ->filterByPhone($orderAddress->getPhone())
+            ->filterByCellphone($orderAddress->getCellphone())
+            ->filterByStateId($orderAddress->getStateId())
+            ->limit(1)
+            ->findOneOrCreate();
+
+
+        if ($deliveryMode !== null && $deliveryMode !== 'delivery') {
+            $address->setLabel(self::PICKUP_LABEL_ADDRESS)->save();
+        }
+
+        return $address;
+    }
+
+    public function getAmountAlreadyPaid(?SubOrder $suborder)
+    {
+        $historySubOrder = $this->getHistoryPayment($suborder);
+        $totalAmount = 0;
+        foreach ($historySubOrder as $history){
+            $totalAmount +=$history['amountAlreadyPaid'];
+        }
+        return $totalAmount;
     }
 }

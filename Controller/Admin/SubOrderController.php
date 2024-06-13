@@ -33,7 +33,6 @@ class SubOrderController extends BaseAdminController
         try {
             $form = $this->validateForm($subOrderForm);
             $data = $form->getData();
-            $data['amountAlreadyPaid'] *= -1;
             $subOrder = $subOrderService->createSubOrderFromParent($data);
             return $this->generateRedirectFromRoute(
                 'admin.order.update.view',
